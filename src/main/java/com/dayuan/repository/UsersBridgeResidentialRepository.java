@@ -17,6 +17,8 @@ public interface UsersBridgeResidentialRepository extends JpaRepository<UsersBri
 	
 	List<UsersBridgeResidential> findByUserIdAndResidentialId(Long userId, Long residentialId);
 	
+	List<UsersBridgeResidential> findBySendUserIdAndResidentialId(Long sendUserId, Long residentialId);
+	
 	UsersBridgeResidential findByTelephoneAndRoomId(String telephone, Long roomId);
 	
 	@Modifying
@@ -24,8 +26,5 @@ public interface UsersBridgeResidentialRepository extends JpaRepository<UsersBri
 	int updateStatus(Integer status, Timestamp updateTime, String telephone, Long residentialId);
 	
 	List<UsersBridgeResidential> findByUserIdAndResidentialIdAndStatus(Long userId, Long residentialId, Integer status);
-	
-	@Query("select u from UsersBridgeResidential u where u.roomId = ?1 and u.sendUserId = ?2 u.startTime >= ?3 and u.endTime <= ?4")
-	List<UsersBridgeResidential> findByAuthTime(Long roomId, Long sendUserId, Timestamp startTime, Timestamp endTime);
 	
 }

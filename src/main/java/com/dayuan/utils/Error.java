@@ -22,6 +22,6 @@ public class Error {
      public static final String REAL_NAME = "真实姓名不匹配，可能您之前授权给过该用户，但两次真实姓名不想同";
      public static final String NOW_NOT_USER = "当前用户不存在";
      public static final String ROOM_NOT_USER_AUTH = "该房屋无法进行授权";
-     public static final String AUTH_TO_FAIL = "该房屋无法进行授权";
+     public static final String AUTH_TO_FAIL = "该房屋授权失败";
      public static final String ROOM_TO_AUTH = "该房屋未进行过授权";
 }

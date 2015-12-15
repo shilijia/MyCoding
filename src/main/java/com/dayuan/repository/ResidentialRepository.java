@@ -10,9 +10,9 @@ import com.dayuan.entity.Residential;
 
 public interface ResidentialRepository extends JpaRepository<Residential, Long>, ResidentialRepositoryCustom{
      
-	 @Query("select r from Residential where cityId = ?1")
+	 @Query("select r from Residential r where r.cityId = ?1")
 	 List<Residential> findByCityId(Long cityId, Pageable pageable);
 	 
-	 @Query("select r from Residential where name like %?1%")
+	 @Query("select r from Residential r where r.name like %?1%")
 	 List<Residential> findByResidentialName(String name, Pageable pageable);
 }

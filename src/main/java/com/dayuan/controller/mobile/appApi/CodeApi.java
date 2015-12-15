@@ -46,7 +46,7 @@ public class CodeApi {
 				coderepos.save(code);
 			}
 			
-			return new ClientReceive().push("feedback", Success.OP_SUCCESS).successMessage();
+			return new ClientReceive().push("feedback", Success.OP_SUCCESS).push("code", code_num).successMessage();
 		} catch (APIException ex) {
 			return ClientReceive.errorMessage(ex.getMessage());
 		} catch (Exception e) {

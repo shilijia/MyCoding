@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
 
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -77,11 +78,10 @@ public class UsersApi {
      @Resource
      UsersCheckInfosRepository ucr;
      
-     
      @RequestMapping(value = "regiester", method = RequestMethod.POST)
      Map userRegiester(@RequestBody Map map){
          try {
-        	 Object code = map.get("code");
+        	 Object code = map.get("validation_code");
         	 Object telephone = map.get("telephone");
         	 Object password = map.get("password");
         
@@ -89,11 +89,10 @@ public class UsersApi {
                  throw new APIException(Error.TEL_ERROR);
              
              Code data_code = codepos.findByTelephone(telephone.toString());
-             
-             
+           
              if(null == code || data_code == null || 
             		 data_code.getCodeNum() != Integer.parseInt(code.toString())) 
-                 throw  new APIException(Error.CODE_ERROR);
+                 throw new APIException(Error.CODE_ERROR);
 
              if(null == password || password.toString().length() < 6)
                  throw new APIException(Error.LOGIN_ERROR);
@@ -107,7 +106,7 @@ public class UsersApi {
              }else{
             	 Users u = new Users();
             	 u.setTelephone(telephone.toString());
-            	 u.setPassword(password.toString());
+            	 u.setPassword(Utils.shaEncode(password.toString()));
             	 out_user = ur.save(u);
              }
              if(null != out_user)
@@ -521,27 +520,39 @@ public class UsersApi {
     }
     
     
-    @RequestMapping(value = "oauth/rooms/send/list/", method = RequestMethod.GET)
-    Map oauthSendList(@RequestParam(value = "room_id", defaultValue = "0") long room_id, 
-    		 @RequestParam(value = "user_id", defaultValue = "0") long user_id,
-      		 @RequestParam(value = "valid_from", defaultValue = "null") String valid_from, 
-      		@RequestParam(value = "valid_until", defaultValue = "null") String valid_until){
+    @SuppressWarnings("unchecked")
+	@RequestMapping(value = "oauth/rooms/send/list/", method = RequestMethod.GET)
+    Map oauthSendList(@RequestParam(value = "complex_id", defaultValue = "0") long complex_id, 
+    		 @RequestParam(value = "user_id", defaultValue = "0") long user_id){
     	try {
-			if( room_id == 0 || user_id ==0)
+			if( complex_id == 0 || user_id ==0)
 				throw new APIException(Error.MISS_PARAM);
 			
-			List<UsersBridgeResidential> list = ubrr.findByAuthTime(room_id, user_id, Utils.strToTimestamp(valid_from), Utils.strToTimestamp(valid_until));
+			List<UsersBridgeResidential> list = ubrr.findBySendUserIdAndResidentialId(user_id, complex_id);
+			
 			if( null == list )
 				throw new APIException(Error.ROOM_TO_AUTH);
 			
 			List result = new ArrayList();
 			for(UsersBridgeResidential ubr:list){
 				Map map = new HashMap();
+				Users user = ur.findOne(ubr.getUserId());
 				map.put("id", ubr.getId());
 				map.put("real_name", ubr.getRealName());
 				map.put("type", ubr.getUserRole());
 				map.put("valid_from", ubr.getStartTime());
 				map.put("valid_unitl", ubr.getEndTime());
+				Building b = buildingpos.getOne(ubr.getBuildingId());
+				Unit u = unitpos.findOne(ubr.getUnitId());
+				Room r = roompos.findOne(ubr.getRoomId());
+				map.put("building_name", b == null?"":b.getName());
+				map.put("unit_name", u == null?"":u.getName());
+				map.put("room_name", r == null?"":r.getRoomNum());
+				Photo p = pr.findByTargetIdAndTargetName(user.getId(), Consts.USER_PHOTO);
+				if(null != p)
+					map.put("avatar_url", p.getPurl());
+				map.put("avatar_url", "");
+				result.add(map);
 			}
 			return new ClientReceive().push("result", list).successMessage();
 			

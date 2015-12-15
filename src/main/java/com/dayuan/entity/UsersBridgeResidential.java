@@ -42,7 +42,7 @@ public class UsersBridgeResidential implements Serializable {
     private String realName;
     
     @Column(name = "status")
-    private int status;          //验证用户账号状态
+    private int status = 0;          //验证用户账号状态
     
     @Column(name = "status_des", length = 200)
     private String statusDes;
