@@ -24,4 +24,6 @@ public class Error {
      public static final String ROOM_NOT_USER_AUTH = "该房屋无法进行授权";
      public static final String AUTH_TO_FAIL = "该房屋授权失败";
      public static final String ROOM_TO_AUTH = "该房屋未进行过授权";
+     public static final String OP_ERROR = "操作失败";
+     public static final String NO_SEARCH_RESIDENTIAL = "该用户还未有认证任何小区";
 }

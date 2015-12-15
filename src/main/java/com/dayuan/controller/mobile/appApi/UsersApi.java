@@ -16,8 +16,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+import org.thymeleaf.expression.Ids;
 
 import com.dayuan.entity.Building;
+import com.dayuan.entity.City;
 import com.dayuan.entity.Code;
 import com.dayuan.entity.Photo;
 import com.dayuan.entity.Residential;
@@ -27,6 +30,7 @@ import com.dayuan.entity.Users;
 import com.dayuan.entity.UsersBridgeResidential;
 import com.dayuan.entity.UsersCheckInfos;
 import com.dayuan.repository.BuildingRepository;
+import com.dayuan.repository.CityRepository;
 import com.dayuan.repository.CodeRepository;
 import com.dayuan.repository.PhotoRepository;
 import com.dayuan.repository.ResidentialRepository;
@@ -39,6 +43,7 @@ import com.dayuan.utils.APIException;
 import com.dayuan.utils.ClientReceive;
 import com.dayuan.utils.Consts;
 import com.dayuan.utils.Error;
+import com.dayuan.utils.PhotoUtils;
 import com.dayuan.utils.Success;
 import com.dayuan.utils.Utils;
 
@@ -77,6 +82,9 @@ public class UsersApi {
      
      @Resource
      UsersCheckInfosRepository ucr;
+     
+     @Resource
+     CityRepository cir;
      
      @RequestMapping(value = "regiester", method = RequestMethod.POST)
      Map userRegiester(@RequestBody Map map){
@@ -191,8 +199,7 @@ public class UsersApi {
     		 //UsersBridgeResidential ubr = ubrr.findByTelephoneAndResidentialId(telephone.toString(), user.getResidentialId());
     		 
     		 Photo ph = pr.findByTargetIdAndTargetName(user.getId(), Consts.USER_PHOTO);
-    		 
-    		 
+    		
 			 Map result = new HashMap();
     		 result.put("avatar_url", ph == null? null:ph.getPurl());
     		 result.put("nickname", user.getNickname());
@@ -333,6 +340,7 @@ public class UsersApi {
      }
     
     //TODO 多个小区的问题，业主验证时，是验证所有的还是只验证当前小区的？？？？  暂时按验证当前小区的
+    //TODO 修改了授权信息，数据库需要记录该用户,记录授权被修改的用户
     @SuppressWarnings({ "unchecked", "unused" })
 	@RequestMapping(value = "update/oauth", method = RequestMethod.PUT)
     Map updateOauth(@RequestBody Map map){
@@ -396,7 +404,7 @@ public class UsersApi {
          }
     }
     
-    
+    //TODO 修改了授权信息，数据库需要记录该用户
     @RequestMapping(value = "oauths/cancle/", method = RequestMethod.PUT)
     Map oauthCanle(@RequestBody Map map){
     	 try{
@@ -449,6 +457,8 @@ public class UsersApi {
      * 1. 该用户之前已有授权。
      * 2. 该用户之前未有授权
      */
+    
+    //TODO 修改了授权信息，数据库需要记录该用户，此处记录被授权用户
     @RequestMapping(value = "add/oauth/rooms/", method = RequestMethod.POST)
     Map oauthForOtherByRoom(@RequestBody Map map){
     	try {
@@ -554,7 +564,7 @@ public class UsersApi {
 				map.put("avatar_url", "");
 				result.add(map);
 			}
-			return new ClientReceive().push("result", list).successMessage();
+			return new ClientReceive().push("result", result).successMessage();
 			
 		} catch(APIException ex){
     	    return ClientReceive.errorMessage(ex.getMessage());
@@ -563,5 +573,184 @@ public class UsersApi {
         }
     }
     
+    //TODO 修改了授权信息，数据库需要记录该用户,此处记录被删除的用户
+    @RequestMapping(value = "delete/oauth/", method = RequestMethod.DELETE)
+    Map deleteOauth(@RequestParam(value = "ids[]") long[] ids){
+    	try {
+			if(null == ids || ids.length == 0)
+				throw new APIException(Error.MISS_PARAM);
+			for(long id:ids){
+				ubrr.delete(id);
+			}
+			return new ClientReceive().push("feedback", Success.OP_SUCCESS).successMessage();
+		} catch(APIException ex){
+    	    return ClientReceive.errorMessage(ex.getMessage());
+        } catch (Exception e){
+            return ClientReceive.errorMessage(Error.SYSTEM_ERROR);
+        }
+    }
     
+    @RequestMapping(value = "update/avatar/", method = RequestMethod.POST)
+    Map updateAvatar(@RequestParam(value = "file") MultipartFile file, HttpServletRequest request){
+    	try {
+    		String userId = request.getParameter("user_id");
+    		
+			if(null == userId || "" == userId)
+				throw new APIException(Error.MISS_PARAM);
+			Photo photo = PhotoUtils.savePhoto(file, pr, Consts.USER_PHOTO, Long.parseLong(userId));
+			
+			return new ClientReceive().push("feedback", Success.OP_SUCCESS)
+					.push("id", userId).push("avatar_url", photo.getPurl()).successMessage();
+			
+		} catch(APIException ex){
+    	    return ClientReceive.errorMessage(ex.getMessage());
+        } catch (Exception e){
+            return ClientReceive.errorMessage(Error.SYSTEM_ERROR);
+        }
+    }
+    
+    @RequestMapping(value = "update/name/", method = RequestMethod.PUT)
+    Map updateName(@RequestBody Map map){
+    	try {
+    		Object user_id = map.get("user_id");
+    		Object nickname = map.get("nickname");
+    		
+			if(null == user_id || null == nickname)
+				throw new APIException(Error.MISS_PARAM);
+			
+			Users user = ur.findOne(Long.parseLong(user_id.toString()));
+			if(null == user)
+				throw new APIException(Error.NOT_USER);
+			
+			user.setNickname(nickname.toString());
+			Users u = ur.save(user);
+			if(null == u)
+				throw new APIException(Error.OP_ERROR);
+			
+			return new ClientReceive().push("feedback", Success.OP_SUCCESS).successMessage();
+			
+		} catch(APIException ex){
+    	    return ClientReceive.errorMessage(ex.getMessage());
+        } catch (Exception e){
+            return ClientReceive.errorMessage(Error.SYSTEM_ERROR);
+        }
+    }
+    
+    @RequestMapping(value = "update/tel/", method = RequestMethod.PUT)
+    Map updateTelphone(@RequestBody Map map){
+    	try {
+    		Object code = map.get("validation_code");
+    		Object telephone = map.get("telephone");
+    		Object user_id = map.get("user_id");
+    		
+			if(null == user_id || null == code || null == telephone)
+				throw new APIException(Error.MISS_PARAM);
+			
+			Code c = codepos.findByTelephone(telephone.toString());
+			if(null == c || c.getCodeNum() != Integer.parseInt(code.toString()))
+				throw new APIException(Error.CODE_ERROR);
+			
+			Users user = ur.findOne(Long.parseLong(user_id.toString()));
+			if(null == user)
+				throw new APIException(Error.NOT_USER);
+			
+			user.setTelephone(telephone.toString());
+			Users u =ur.save(user);
+			if(null == u)
+				throw new APIException(Error.OP_ERROR);
+			
+			return new ClientReceive().push("feedback", Success.OP_SUCCESS).successMessage();
+			
+		} catch(APIException ex){
+    	    return ClientReceive.errorMessage(ex.getMessage());
+        } catch (Exception e){
+            return ClientReceive.errorMessage(Error.SYSTEM_ERROR);
+        }
+    }
+    
+    @RequestMapping(value = "cancle", method = RequestMethod.PUT)
+    Map userCancle(@RequestBody Map map){
+    	try {
+    		Object user_id = map.get("user_id");
+    		
+			if(null == user_id)
+				throw new APIException(Error.MISS_PARAM);
+			
+			Users user = ur.findOne(Long.parseLong(user_id.toString()));
+			if(null == user)
+				throw new APIException(Error.NOT_USER);
+			
+			user.setStatus(Consts.USERS_CANCLE);
+			Users u = ur.save(user);
+			if(null == u)
+				throw new APIException(Error.OP_ERROR);
+			
+			return new ClientReceive().push("feedback", Success.OP_SUCCESS).successMessage();
+			
+		} catch(APIException ex){
+    	    return ClientReceive.errorMessage(ex.getMessage());
+        } catch (Exception e){
+            return ClientReceive.errorMessage(Error.SYSTEM_ERROR);
+        }
+    }
+    
+    @SuppressWarnings("unchecked")
+	@RequestMapping(value = "residential_quarter/list/", method = RequestMethod.GET)
+    Map getResidentialList(@RequestParam(value = "user_id", defaultValue = "0") long user_id){
+    	try {
+    		
+			if(0 == user_id)
+				throw new APIException(Error.MISS_PARAM);
+			
+			List<UsersBridgeResidential> userList = ubrr.findByUserIdDistinct(user_id);
+			if(null == userList || userList.size() == 0)
+				throw new APIException(Error.NO_SEARCH_RESIDENTIAL);
+			
+			List result = new ArrayList();
+			for(UsersBridgeResidential ub:userList){
+				Residential r = respos.findOne(ub.getResidentialId());
+				City city = cir.findOne(r.getCityId());
+				Map map = new HashMap();
+				map.put("complex_id", r.getId());
+				map.put("complex_name", r.getName());
+				map.put("city_name", city.getCityName());
+				result.add(map);
+			}
+			return new ClientReceive().push("result", result).successMessage();
+		} catch(APIException ex){
+    	    return ClientReceive.errorMessage(ex.getMessage());
+        } catch (Exception e){
+            return ClientReceive.errorMessage(Error.SYSTEM_ERROR);
+        }
+    }
+    
+    @SuppressWarnings("unchecked")
+	@RequestMapping(value = "change/residential/", method = RequestMethod.PUT)
+    Map changeResidential(@RequestBody Map map){
+    	try {
+    		Object user_id = map.get("user_id");
+    		Object complex_id = map.get("complex_id");
+    		
+			if(null == user_id || null == complex_id)
+				 throw new APIException(Error.MISS_PARAM);
+			
+			Users user = ur.findOne(Long.parseLong(user_id.toString()));
+			Residential residential = respos.findOne(Long.parseLong(complex_id.toString()));
+			
+			if(null == user || null == residential)
+				throw new APIException(Error.SYSTEM_ERROR);
+			
+			user.setResidentialId(Long.parseLong(complex_id.toString()));
+			
+			Users u = ur.save(user);
+			if(null == u)
+				throw new APIException(Error.OP_ERROR);
+			
+			return new ClientReceive().push("feedback", Success.OP_SUCCESS).successMessage();
+		} catch(APIException ex){
+    	    return ClientReceive.errorMessage(ex.getMessage());
+        } catch (Exception e){
+            return ClientReceive.errorMessage(Error.SYSTEM_ERROR);
+        }
+    }
 }

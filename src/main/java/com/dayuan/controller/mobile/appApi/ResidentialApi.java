@@ -284,4 +284,27 @@ public class ResidentialApi {
              return ClientReceive.errorMessage(Error.SYSTEM_ERROR);
        }
     }
+    
+    @RequestMapping(value = "infos", method = RequestMethod.GET)
+    Map ResidentialInfos(@RequestParam(value = "complex_id", defaultValue = "0") long complex_id){
+    	try {
+			if(complex_id == 0)
+				throw new APIException(Error.MISS_PARAM);
+			
+			Residential residential = rdr.findOne(complex_id);
+			int count = ur.countUsersByResidential(complex_id);
+			
+			if(null == residential)
+				throw new APIException(Error.SYSTEM_ERROR);
+			
+			return new ClientReceive().push("complex_name", residential.getName())
+					.push("property_company_name", residential.getManagerName())
+					.push("complex_user_count", count).successMessage();
+			
+		} catch (APIException ex) {
+			 return ClientReceive.errorMessage(ex.getMessage());
+		} catch (Exception e){
+            return ClientReceive.errorMessage(Error.SYSTEM_ERROR);
+        }
+    }
 }
