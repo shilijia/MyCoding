@@ -27,4 +27,9 @@ public interface UsersBridgeResidentialRepository extends JpaRepository<UsersBri
 	
 	List<UsersBridgeResidential> findByUserIdAndResidentialIdAndStatus(Long userId, Long residentialId, Integer status);
 	
+	List<UsersBridgeResidential> findByUserId(Long userId);
+	
+	@Query("select u from UsersBridgeResidential u where u.userId = ?1 group by u.residentialId")
+	List<UsersBridgeResidential> findByUserIdDistinct(Long user_id);
+	
 }
